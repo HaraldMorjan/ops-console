@@ -1,0 +1,44 @@
+name: Deploy to DonDominio
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: deploy-portfolio
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Debug FTP target (no secrets printed)
+        run: |
+          echo "Server: ${{ secrets.FTP_SERVER }}"
+          echo "Server dir: ${{ secrets.FTP_SERVER_DIR }}"
+          echo "Username length: ${#FTP_USERNAME}"
+        env:
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+
+      - name: Upload via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          security: loose
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          dangerous-clean-slate: false
